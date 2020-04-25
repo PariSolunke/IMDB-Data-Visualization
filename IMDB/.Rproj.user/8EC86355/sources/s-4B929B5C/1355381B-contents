@@ -1,0 +1,151 @@
+library(lubridate)
+library(dplyr)
+library(shiny)
+library(shinydashboard)
+library(ggplot2)
+
+df<-read.table(file = "imdb.csv", header = TRUE, sep = ",")
+df$Month<-month(parse_date_time(x = df$Release.Date,orders =c("d m y", "d B Y", "m/d/y"),locale = "eng"), label = TRUE, abbr = TRUE)
+df$Genre<-gsub("\t","",df$Genre,fixed = TRUE)
+
+
+ui <- dashboardPage(
+    
+    dashboardHeader(title = "IMDB Analysis"),
+    dashboardSidebar(disable = FALSE, collapsed = FALSE,
+                     sidebarMenu(
+                         selectInput("flt","Filter by Year/Decade?",c("None","Year","Decade")),
+                        conditionalPanel(
+                            condition = "input.flt=='Decade'",
+                            selectInput("ipdc","Choose Decade",c("1910","1920","1930","1940","1950","1960","1970","1980","1990","2000","2010"))
+                            
+                        ),
+                        conditionalPanel(
+                            condition = "input.flt=='Year'",
+                            selectInput("ipyr","Choose Year",c(1913,1915:2017))
+                            
+                        )
+                        
+                         
+                         )
+    ),
+    dashboardBody(    
+        tabsetPanel(
+            tabPanel( "Graphs",
+                      fluidPage(
+                     
+                                fluidRow(          
+                                    column(8,
+                                        
+                                           box( title = "Films by Year", solidHeader = TRUE, status = "primary", width = 12,
+                                                plotOutput("bar1",height = 300)
+                                           )
+                                    ),
+                                    column(4,
+                                           
+                                           box( title = "Films by Runtime", solidHeader = TRUE, status = "primary", width = 12
+                                                ,plotOutput("bar2",height = 300)
+                                           )
+                                    )
+                                  ),
+                                
+                                
+                                fluidRow(
+                                  column(6,
+                                  box( title = "Films by Month", solidHeader = TRUE, status = "primary", width = 12,
+                                       plotOutput("bar3",height = 300))
+                                  ),
+                                  column(6,
+                                         box( title = "Films by Genre", solidHeader = TRUE, status = "primary", width = 12,
+                                              plotOutput("bar4",height = 300))
+                                         ),
+                                ),
+                                
+                                
+                                
+                                fluidRow(
+                                  column(6,
+                                         box( title = "Films by Certificate", solidHeader = TRUE, status = "primary", width = 12
+                                              #,plotOutput("bar5",height = 300))
+                                         )
+                                  ),
+                                  column(6,
+                                         
+                                         box()
+                                         )
+                                  
+                                )
+                                   
+                                    
+                                    
+                                    
+                              
+                          
+                                
+                                
+                                
+                                
+                     
+                      
+                      
+                      )       
+                      
+            ),
+            
+            
+            tabPanel("Tables"),
+        
+            
+            tabPanel("About",  h4("Authors:Ansul Goenka, Parikshit Solunke"), h4(""))
+        ))
+)
+
+
+
+server <- function(input, output) 
+{
+  #reactive({ 
+    #if
+    
+    
+    #})
+
+    
+  output$bar1 <- renderPlot({
+    plot<-count(df, 'Year')
+    
+    ggplot(data=plot, aes(x=Year, y=freq)) + geom_bar(stat="identity",fill="#0072B2" ,width=0.8)+ylab("Number") +scale_x_continuous("Year",breaks=seq(1913, 2017, 5))
+    
+    
+    })
+  output$bar2 <- renderPlot({
+    plot<-as.data.frame(table(cut(df$Run.Time,breaks=c(60,90,120,150,180,210,1000),labels=c("<90","90-120","120-150","150-180","180-210",">210"))) )
+    colnames(plot)<-c("Runtime","Number")
+    
+    ggplot(data=plot, aes(x=Runtime, y=Number)) + geom_bar(stat="identity",fill="#0072B2" ,width=0.8)
+
+    
+    
+  })
+  
+  
+  output$bar3 <- renderPlot({
+    plot<-count(df, 'Month')
+    plot<-plot[complete.cases(plot$Month), ]
+
+    
+    ggplot(data=plot, aes(x=Month, y=freq)) + geom_bar(stat="identity",fill="#0072B2" ,width=0.8)+ylab("Number")
+    
+    
+  })
+  output$bar4 <- renderPlot({
+    plot<-count(df, 'Genre')
+    
+    ggplot(data=plot, aes(x=Genre, y=freq)) + geom_bar(stat="identity",fill="#0072B2" ,width=0.8)+ylab("Number") +theme(axis.text.x = element_text(angle = 90, hjust = 1))
+    
+    
+  })
+    
+    
+}
+shinyApp(ui = ui, server = server)
