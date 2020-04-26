@@ -5,6 +5,8 @@ library(shiny)
 library(shinydashboard)
 library(ggplot2)
 library(DT)
+library(reshape)
+library(shinythemes)
 
 df<-read.table(file = "imdb.csv", header = TRUE, sep = ",")
 df$Month<-month(parse_date_time(x = df$Release.Date,orders =c("d m y", "d B Y", "m/d/y"),locale = "eng"), label = TRUE, abbr = TRUE)
@@ -12,12 +14,14 @@ df$Genre<-gsub("\t","",df$Genre,fixed = ,TRUE)
 
 df$Keywords<-as.character(df$Keywords)
 df$Keywords<-gsub(" ","",df$Keywords,fixed = TRUE)
+
 kfreq<-setNames(as.data.frame(table(unlist(strsplit(df$Keywords, ",", fixed=TRUE)))),c("Keyword","Number"))
 kfreq$Keyword<-as.character(kfreq$Keyword)
 kfreq<-kfreq[order(-kfreq$Number),]
 kfreq<-kfreq[!grepl("nudity", kfreq$Keyword),]
 kfreq<-kfreq[!grepl("bare", kfreq$Keyword),]
 kfreq<-kfreq[1:10,]
+
 keys<-as.array(kfreq$Keyword)
 keys<-append(keys,"None",0)
 
@@ -34,7 +38,7 @@ genres<-append(genres,"None",0)
 
 #Left Join kfreq?
 
-ui <- dashboardPage(
+ui <- dashboardPage(skin="purple",
     
     dashboardHeader(title = "IMDB Analysis"),
     dashboardSidebar(disable = FALSE, collapsed = FALSE,
@@ -42,12 +46,12 @@ ui <- dashboardPage(
                          selectInput("flt","Filter by Year/Decade?",c("None","Year","Decade")),
                         conditionalPanel(
                             condition = "input.flt=='Decade'",
-                            selectInput("ipdc","Choose Decade",c("1910","1920","1930","1940","1950","1960","1970","1980","1990","2000","2010"))
+                            selectInput("ipdc","Choose Decade",c("1910s","1920s","1930s","1940s","1950s","1960s","1970s","1980s","1990s","2000s","2010s"),selected="2010s")
                             
                         ),
                         conditionalPanel(
                             condition = "input.flt=='Year'",
-                            selectInput("ipyr","Choose Year",c(1913,1915:2017))
+                            selectInput("ipyr","Choose Year",c(1913,1915:2017),selected="2013")
                             
                         ),
                         h5("Filters:"),
@@ -71,6 +75,10 @@ ui <- dashboardPage(
                           selectInput("crt2","Certificate Filter 1",certs)
                      )
                     ),
+                    radioButtons("krd", "Keyword Method", choices = c("Select From top 10","Type Keyword"), inline = FALSE,),
+                    conditionalPanel(                            
+                      condition = "input.krd!='Type Keyword'",
+
                     fluidRow(
                     column(6,style='padding-left:0px; padding-right:0px;', 
                         selectInput("kwd","Keyword Filter 1",keys),
@@ -79,7 +87,7 @@ ui <- dashboardPage(
                           selectInput("kwd2","Keyword Filter 2",keys)
                         
                     ))
-                        
+                    )  
                          
                          )
     ),
@@ -116,14 +124,14 @@ ui <- dashboardPage(
                                   column(6,
                                          box(  solidHeader = FALSE, status = "primary", width = 12,
                                               plotOutput("bar4",height = 335))
-                                         ),
+                                  ),
                                 ),
                                 
                                 
                                 
                                 fluidRow(
                                   column(6,
-                                         box( solidHeader = FALSE, status = "primary", width = 12
+                                         box(  solidHeader = FALSE, status = "primary", width = 12
                                               ,plotOutput("bar5",height = 335))
                                          ),
                                   
@@ -160,8 +168,8 @@ ui <- dashboardPage(
                                 box( title = "Films by Year", solidHeader = TRUE, status = "primary", width = 12,
                                      dataTableOutput("tab1")
                                 )
-                                
-                                ),
+                                                              ),
+  
                          column(4,
                                 box( title = "Films by Runtime", solidHeader = TRUE, status = "primary", width = 12,
                                      dataTableOutput("tab2")
@@ -291,8 +299,8 @@ server <- function(input, output)
       rnthigh2=1000
     }
   
-      
-    
+    if(input$gnr != 'None'| input$rnt != 'None'|input$kwd != 'None'|input$crt != 'None'|input$gnr2 != 'None'|input$rnt2 != 'None'|input$kwd2 != 'None'|input$crt2 != 'None')
+    {
     df %>%
       filter(
         conditional(input$gnr != 'None' & input$gnr2=='None', Genre == input$gnr ),
@@ -312,19 +320,168 @@ server <- function(input, output)
         conditional(input$crt =='None' & input$crt2!='None', grepl(input$crt2,Certificate ) )
         
       )
+    }
+    else
+    {
+      df
+    }
+  })
+  
+  cfreq2<-reactive({
+    cf1<-setNames(as.data.frame(table(unlist(strsplit(df2()$Certificate, ",", fixed=TRUE)))),c("Certificate","Number"))
+    cf1$Certificate<-as.character(cf1$Certificate)
+
+    cf1<-left_join(cfreq,cf1,by=c("Certificate"))
+    colnames(cf1)<-c("Certificate","Number","Number2")
+    cf1$Number[is.na(cf1$Number)] = 0
+    cf1$Number2[is.na(cf1$Number2)] = 0
+    if(input$crt!='None'|input$crt2!='None')
+    {
+     if(input$crt2=='None')
+    {
+     cf1<-cf1[cf1$Certificate==input$crt,]
+    
+    }
+    else if(input$crt=='None')
+    {
+    cf1<-cf1[cf1$Certificate==input$crt2,]
+    }
+    else
+    {
+      cf1<- cf1[(cf1$Certificate==input$crt2|cf1$Certificate==input$crt ),] 
+    }
+      
+    }
+    
+    cf1
   })
   
   
+  kfreq2<-reactive({
+    kf1<-setNames(as.data.frame(table(unlist(strsplit(df2()$Keywords, ",", fixed=TRUE)))),c("Keyword","Number"))
+    kf1$Keyword<-as.character(kf1$Keyword)
+    
+    kf1<-left_join(kfreq,kf1,by=c("Keyword"))
+    colnames(kf1)<-c("Keyword","Number","Number2")
+    kf1$Number[is.na(kf1$Number)] = 0
+    kf1$Number2[is.na(kf1$Number2)] = 0
+    if(input$kwd!='None'|input$kwd2!='None')
+    {
+      if(input$kwd2=='None')
+      {
+        kf1<-kf1[kf1$Keyword==input$kwd,]
+        
+      }
+      else if(input$kwd=='None')
+      {
+        kf1<-kf1[kf1$Keyword==input$kwd2,]
+      }
+      else
+      {
+        kf1<- kf1[(kf1$Keyword==input$kwd2|kf1$Keyword==input$kwd ),] 
+      }
+      
+    }
+    
+    kf1
+  })
   
   
+  df3<-reactive({
+    if(input$flt=='Year')
+    {
+      df2()[df2()$Year==input$ipyr,]
+    }
+    else if(input$flt=='Decade')
+    {
+     if(input$ipdc=='1910s')
+     {
+       df2()[(df2()$Year>=1910 & df2()$Year<1920 ),]
+     }
+      else if(input$ipdc=='1920s')
+      {
+        df2()[(df2()$Year>=1920 & df2()$Year<1930 ),]
+      }
+      else if(input$ipdc=='1930s')
+      {
+        df2()[(df2()$Year>=1930 & df2()$Year<1940 ),]
+      }
+      else if(input$ipdc=='1940s')
+      {
+        df2()[(df2()$Year>=1940 & df2()$Year<1950 ),]
+      }
+      else if(input$ipdc=='1950s')
+      {
+        df2()[(df2()$Year>=1950 & df2()$Year<1960 ),]
+      }
+      else if(input$ipdc=='1960s')
+      {
+        df2()[(df2()$Year>=1960 & df2()$Year<1970 ),]
+      }
+      else if(input$ipdc=='1970s')
+      {
+        df2()[(df2()$Year>=1970 & df2()$Year<1980 ),]
+      }
+      else if(input$ipdc=='1980s')
+      {
+        df2()[(df2()$Year>=1980 & df2()$Year<1990 ),]
+      }
+      else if(input$ipdc=='1990s')
+      {
+        df2()[(df2()$Year>=1990 & df2()$Year<2000 ),]
+      }
+      else if(input$ipdc=='2000s')
+      {
+        df2()[(df2()$Year>=2000 & df2()$Year<2010 ),]
+      }
+      else if(input$ipdc=='2010s')
+      {
+        df2()[(df2()$Year>=2010 & df2()$Year<2020 ),]
+      }
+       
+    }
+    else
+    {
+      df2()
+    }
+  })
+  
+ 
+  cfreq3<-reactive({
+    cf2<-setNames(as.data.frame(table(unlist(strsplit(df3()$Certificate, ",", fixed=TRUE)))),c("Certificate","Number"))
+    cf2$Certificate<-as.character(cf2$Certificate)
+   
+   
+    cf2<-left_join(cfreq2()[,c(1,3)],cf2,by=c("Certificate"))
+    colnames(cf2)<-c("Certificate","Number","Number2")
+    cf2$Number[is.na(cf2$Number)] = 0
+    cf2$Number2[is.na(cf2$Number2)] = 0
+    
+    cf2
+    
+  })
+  
+  kfreq3<-reactive({
+    kf2<-setNames(as.data.frame(table(unlist(strsplit(df3()$Keywords, ",", fixed=TRUE)))),c("Keyword","Number"))
+    kf2$Keyword<-as.character(kf2$Keyword)
+    
+    
+    kf2<-left_join(kfreq2()[,c(1,3)],kf2,by=c("Keyword"))
+    colnames(kf2)<-c("Keyword","Number","Number2")
+    kf2$Number[is.na(kf2$Number)] = 0
+    kf2$Number2[is.na(kf2$Number2)] = 0
+    
+    kf2
+    
+  })
   
   
   
 
     
   output$bar1 <- renderPlot({
-    plot<-count(df2(), 'Year')
-    ggplot(data=plot, aes(x=Year, y=freq)) + geom_bar(stat="identity",fill="#0072B2" ,width=0.8)+ylab("Number") +scale_x_continuous("Year",breaks=seq(1913, 2017, 5))
+    plot<-count(df3(), 'Year')
+    ggplot(data=plot, aes(x=Year, y=freq)) + geom_bar(stat="identity",fill="#FF9999" ,width=0.8)+ylab("Number") +scale_x_continuous("Year",breaks=seq(1913, 2017, 5)) + scale_y_continuous(breaks=c(0,200,400,600,800))
     
     
     })
@@ -332,8 +489,31 @@ server <- function(input, output)
     plot<-as.data.frame(table(cut(df2()$Run.Time,breaks=c(59,89,119,149,179,209,2000),labels=c("<90","90-120","120-150","150-180","180-210",">210"))) )
     colnames(plot)<-c("Runtime","Number")
     
-    ggplot(data=plot, aes(x=Runtime, y=Number)) + geom_bar(stat="identity",fill="#0072B2" ,width=0.8)+ggtitle("Films by Runtime")+xlab("Runtimes(Minutes)") 
+    if(input$flt=='None')
+    {
+      
+    ggplot(data=plot, aes(x=Runtime, y=Number)) + geom_bar(stat="identity",fill="#FF9999" ,width=0.8)+ggtitle("Films by Runtime")+xlab("Runtimes(Minutes)") 
+    }
+    else
+    {
+    
+      plot2<-as.data.frame(table(cut(df3()$Run.Time,breaks=c(59,89,119,149,179,209,2000),labels=c("<90","90-120","120-150","150-180","180-210",">210"))) )
+      colnames(plot2)<-c("Runtime","Number")
+      plot$Number2<-plot2$Number
+      
+      m_dat <- melt(plot,id="Runtime")
+      
+      #create grouping variable
+      m_dat$group <- gsub("2","",m_dat$variable)
+      
+      #plot based on selection
+      ggplot(m_dat[m_dat$group=="Number",],
+                   aes(x=Runtime,y=value,group=variable,fill=variable)) +
+        geom_bar(stat="identity",position="dodge")+theme(axis.text.x = element_text(angle = 45, hjust = 1)) + scale_fill_discrete(name = "Number", labels = c("Overall", "Selection"))
 
+      
+      
+    }
     
     
   })
@@ -341,33 +521,110 @@ server <- function(input, output)
   
   output$bar3 <- renderPlot({
     plot<-count(df2(), 'Month')
+    colnames(plot)<-c("Month","Number")
+    
     plot<-plot[complete.cases(plot$Month), ]
-
-    
-    ggplot(data=plot, aes(x=Month, y=freq)) + geom_bar(stat="identity",fill="#0072B2" ,width=0.8)+ylab("Number")
-    
+    if(input$flt=='None')
+    {
+    ggplot(data=plot, aes(x=Month, y=Number)) + geom_bar(stat="identity",fill="#FF9999" ,width=0.8)+ylab("Number")
+    }
+    else
+    {
+      plot2<-count(df3(), 'Month')
+      colnames(plot2)<-c("Month","Number")
+      
+      plot2<-plot2[complete.cases(plot2$Month), ] 
+      
+      plot<-left_join(plot,plot2,by=c("Month"))
+      colnames(plot)<-c("Month","Number","Number2")
+      
+      m_dat <- melt(plot,id="Month")
+      
+      #create grouping variable
+      m_dat$group <- gsub("2","",m_dat$variable)
+      
+      #plot based on selection
+      ggplot(m_dat[m_dat$group=="Number",],
+             aes(x=Month,y=value,group=variable,fill=variable)) +
+        geom_bar(stat="identity",position="dodge")+theme(axis.text.x = element_text(angle = 45, hjust = 1)) + scale_fill_discrete(name = "Number", labels = c("Overall", "Selection"))
+      
+    }
     
   })
+  
+  
+  
   output$bar4 <- renderPlot({
     plot<-count(df2(), 'Genre')
-    
-    ggplot(data=plot, aes(x=Genre, y=freq)) + geom_bar(stat="identity",fill="#0072B2" ,width=0.8)+ylab("Number") +theme(axis.text.x = element_text(angle = 90, hjust = 1))
-    
+    colnames(plot)<-c("Genre","Number")
+    if(input$flt=='None')
+    {
+    ggplot(data=plot, aes(x=Genre, y=Number )) + geom_bar(stat="identity",fill="#FF9999" ,width=0.8)+ylab("Number") +theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    }
+    else
+    {
+      plot2<-count(df3(), 'Genre')
+      colnames(plot2)<-c("Genre","Number")
+      plot<-left_join(plot,plot2,by=c("Genre"))
+      colnames(plot)<-c("Genre","Number","Number2")
+      
+      m_dat <- melt(plot,id="Genre")
+      
+      #create grouping variable
+      m_dat$group <- gsub("2","",m_dat$variable)
+      ggplot(m_dat[m_dat$group=="Number",],
+             aes(x=Genre,y=value,group=variable,fill=variable)) +
+        geom_bar(stat="identity",position="dodge")+theme(axis.text.x = element_text(angle = 45, hjust = 1)) + scale_fill_discrete(name = "Number", labels = c("Overall", "Selection"))
+      
+      
+      
+      
+    }
     
   })
   
   output$bar5 <- renderPlot({
-
-    ggplot(data=cfreq, aes(x=Certificate, y=Number)) + geom_bar(stat="identity",fill="#0072B2" ,width=0.8)+ scale_y_continuous(breaks=c(0,2000,4000,6000,8000,10000,12000,14000))
     
+    if(input$flt=='None')
+    {
+      ggplot(data=cfreq2(), aes(x=Certificate, y=Number2)) + geom_bar(stat="identity",fill="#FF9999" ,width=0.8)+ scale_y_continuous(breaks=c(0,2000,4000,6000,8000,10000,12000,14000))
+    }
+    else
+    {
+      
+     
+      
+      m_dat <- melt(cfreq3(),id="Certificate")
+      
+      #create grouping variable
+      m_dat$group <- gsub("2","",m_dat$variable)
+      ggplot(m_dat[m_dat$group=="Number",],
+             aes(x=Certificate,y=value,group=variable,fill=variable)) + geom_bar(stat="identity",position="dodge")+theme(axis.text.x = element_text(angle = 45, hjust = 1)) + scale_fill_discrete(name = "Number", labels = c("Overall", "Selection"))
+      
+    }
   })
   
   output$bar6 <- renderPlot({
-
-    ggplot(data=kfreq, aes(x=Keyword, y=Number)) + geom_bar(stat="identity",fill="#0072B2" ,width=0.8)+coord_flip()
     
+    
+    if(input$flt=='None')
+    {
+      ggplot(data=kfreq2(), aes(x=Keyword, y=Number2)) + geom_bar(stat="identity",fill="#FF9999" ,width=0.8)+ coord_flip()
+    }
+    else
+    {
+      
+      
+      
+      m_dat <- melt(kfreq3(),id="Keyword")
+      
+      #create grouping variable
+      m_dat$group <- gsub("2","",m_dat$variable)
+      ggplot(m_dat[m_dat$group=="Number",],
+             aes(x=Keyword,y=value,group=variable,fill=variable)) + geom_bar(stat="identity",position="dodge")+theme(axis.text.x = element_text(angle = 45, hjust = 1)) + scale_fill_discrete(name = "Number", labels = c("Overall", "Selection"))
+      
+    }    
   })
-  
   
   output$tab1<-renderDataTable({
    plot<-count(df2(), 'Year')
@@ -384,26 +641,54 @@ server <- function(input, output)
   })
   
   output$tab3<-renderDataTable({
+    if(input$flt=='None')
+    {
     plot<-count(df2(), 'Month')
+    }
+    else
+    {
+      plot<-count(df3(), 'Month')
+    }
     plot<-plot[complete.cases(plot$Month), ]
     colnames(plot)<-c("Month","Number")
     datatable(plot,selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 6,dom='tp'))
   })
   
   output$tab4<-renderDataTable({
+    if(input$flt=='None')
+    {
     plot<-count(df2(), 'Genre')
+    }
+    else
+    {
+      plot<-count(df3(), 'Genre')
+    }
     colnames(plot)<-c("Month","Number")
     datatable(plot,selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 6,dom='tp'))
   })
-  output$tab5<-renderDataTable({
-    
-    datatable(cfreq,selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 7,dom='tp'))
-  })
-  output$tab6<-renderDataTable({
   
-    datatable(kfreq,selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 6,dom='tp'))
+  output$tab5<-renderDataTable({
+    if(input$flt=='None')
+    {
+    
+    datatable(cfreq2()[,c(1,3)],colnames=c("Certificate", "Number"),selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 7,dom='tp'))
+    }
+    else
+    {
+      datatable(cfreq3()[,c(1,3)],colnames=c("Certificate", "Number"),selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 7,dom='tp'))
+    }
   })
-    
-    
+  
+  output$tab6<-renderDataTable({
+    if(input$flt=='None')
+    {
+      
+      datatable(kfreq2()[,c(1,3)],colnames=c("Keyword", "Number"),selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 7,dom='tp'))
+    }
+    else
+    {
+      datatable(kfreq3()[,c(1,3)],colnames=c("Keyword", "Number"),selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 7,dom='tp'))
+    }
+  })
 }
 shinyApp(ui = ui, server = server)
