@@ -6,7 +6,6 @@ library(shinydashboard)
 library(ggplot2)
 library(DT)
 library(reshape)
-library(shinythemes)
 
 df<-read.table(file = "imdb.csv", header = TRUE, sep = ",")
 df$Month<-month(parse_date_time(x = df$Release.Date,orders =c("d m y", "d B Y", "m/d/y"),locale = "eng"), label = TRUE, abbr = TRUE)
@@ -18,8 +17,8 @@ df$Keywords<-gsub(" ","",df$Keywords,fixed = TRUE)
 kfreq<-setNames(as.data.frame(table(unlist(strsplit(df$Keywords, ",", fixed=TRUE)))),c("Keyword","Number"))
 kfreq$Keyword<-as.character(kfreq$Keyword)
 kfreq<-kfreq[order(-kfreq$Number),]
-kfreq<-kfreq[!grepl("nudity", kfreq$Keyword),]
-kfreq<-kfreq[!grepl("bare", kfreq$Keyword),]
+kfreq<-kfreq[!grepl("nudity|sex|breast|chest|softcore|rape|rapist|porn", kfreq$Keyword),]
+allkeys<-kfreq$Keyword[1:3000]
 kfreq<-kfreq[1:10,]
 
 keys<-as.array(kfreq$Keyword)
@@ -38,7 +37,7 @@ genres<-append(genres,"None",0)
 
 #Left Join kfreq?
 
-ui <- dashboardPage(skin="purple",
+ui <- dashboardPage(skin="black",
     
     dashboardHeader(title = "IMDB Analysis"),
     dashboardSidebar(disable = FALSE, collapsed = FALSE,
@@ -87,29 +86,47 @@ ui <- dashboardPage(skin="purple",
                           selectInput("kwd2","Keyword Filter 2",keys)
                         
                     ))
-                    )  
+                    ),
+                    conditionalPanel(                            
+                      condition = "input.krd=='Type Keyword'",
+                      
+                    selectizeInput(
+                      'typekwd', 'Type Keyword(upto 3)', choices = allkeys,multiple=TRUE,
+                      options = list(maxItems = 3,maxOptions = 15,placeholder = 'Type & Select from Suggestions'))
+                    )
                          
                          )
     ),
     dashboardBody(
       
         tags$head( 
-          tags$style(HTML(".main-sidebar { font-size: 12px; }")) #change the font size to 20
+          tags$style(HTML(".main-sidebar { font-size: 12px; }"))
         ),
         tabsetPanel(
             tabPanel( "Graphs",
                       fluidPage(
+                        fluidRow(
+                          column(12, 
+                                 
+                                 box(solidHeader=TRUE,width=12, htmlOutput("overview"))
+                                 
+                                 
+                                 )
+                          
+                          
+                          
+                        ),
                      
                                 fluidRow(          
                                     column(8,
                                         
-                                           box(solidHeader = FALSE, status = "primary", width = 12,
-                                                plotOutput("bar1",height = 335)
+                                           box( solidHeader = TRUE,status='info' , width = 12,
+                                               plotOutput("bar1",height = 335)
                                            )
                                     ),
                                     column(4,
                                            
-                                           box( solidHeader = FALSE, status = "primary", width = 12
+                                           box( solidHeader = TRUE, status = "info", width = 12
                                                 ,plotOutput("bar2",height = 335)
                                            )
                                     )
@@ -118,11 +135,11 @@ ui <- dashboardPage(skin="purple",
                                 
                                 fluidRow(
                                   column(6,
-                                  box(solidHeader = FALSE, status = "primary", width = 12,
+                                  box(solidHeader = TRUE, status = "info", width = 12,
                                        plotOutput("bar3",height = 335))
                                   ),
                                   column(6,
-                                         box(  solidHeader = FALSE, status = "primary", width = 12,
+                                         box(  solidHeader = TRUE, status = "info", width = 12,
                                               plotOutput("bar4",height = 335))
                                   ),
                                 ),
@@ -131,13 +148,13 @@ ui <- dashboardPage(skin="purple",
                                 
                                 fluidRow(
                                   column(6,
-                                         box(  solidHeader = FALSE, status = "primary", width = 12
+                                         box(  solidHeader = TRUE, status = "info", width = 12
                                               ,plotOutput("bar5",height = 335))
                                          ),
                                   
                                   column(6,
                                          
-                                         box( solidHeader = FALSE, status = "primary", width = 12
+                                         box( solidHeader = TRUE, status = "info", width = 12
                                               ,plotOutput("bar6",height = 335))
                                          
                                   ),
@@ -160,25 +177,25 @@ ui <- dashboardPage(skin="purple",
             ),
             
             
-            tabPanel("Tables and List",
+            tabPanel("Tables",
                      fluidPage(
                        
                        fluidRow(
                          column(4,
-                                box( title = "Films by Year", solidHeader = TRUE, status = "primary", width = 12,
+                                box( title = "Films by Year", solidHeader = TRUE, status = "info", width = 12,height=370,
                                      dataTableOutput("tab1")
                                 )
                                                               ),
   
                          column(4,
-                                box( title = "Films by Runtime", solidHeader = TRUE, status = "primary", width = 12,
+                                box( title = "Films by Runtime", solidHeader = TRUE, status = "info", width = 12,height=370,
                                      dataTableOutput("tab2")
                                 )
                                 
                                 
                                 ),
                          column(4,
-                                box( title = "Films by Month", solidHeader = TRUE, status = "primary", width = 12,
+                                box( title = "Films by Month", solidHeader = TRUE, status = "info", width = 12,height=370,
                                      dataTableOutput("tab3")
                                 )
                            
@@ -187,20 +204,20 @@ ui <- dashboardPage(skin="purple",
                        ),
                        fluidRow(
                          column(4,
-                                box( title = "Films by Genre", solidHeader = TRUE, status = "primary", width = 12,
+                                box( title = "Films by Genre", solidHeader = TRUE, status = "info", width = 12,height=375,
                                      dataTableOutput("tab4")
                                 )
                                 
                          ),
                          column(4,
                                 
-                                box( title = "Films by Certificate", solidHeader = TRUE, status = "primary", width = 12,
+                                box( title = "Films by Certificate", solidHeader = TRUE, status = "info", width = 12,height=375,
                                      dataTableOutput("tab5")
                                 )
                                 
                          ),
                          column(4,
-                                box( title = "Films by Keyword", solidHeader = TRUE, status = "primary", width = 12,
+                                box( title = "Films by Keyword", solidHeader = TRUE, status = "info", width = 12,height=375,
                                      dataTableOutput("tab6")
                                 )
                                 
@@ -216,7 +233,25 @@ ui <- dashboardPage(skin="purple",
                      
                      
             ),
-        
+            tabPanel("Highest Rated Movies",  
+                     fluidRow(),
+                     
+                     fluidRow(
+                   
+                       column(12,
+                              box( title = "Highest Rated Movies based on Input Criteria", solidHeader = TRUE, status = "info", width = 12,
+                                   dataTableOutput("tab7")
+                              
+                              
+                              )
+                       
+                       
+                       
+                     )
+                     
+                     
+                     ),
+            ),
             
             tabPanel("About",  h4("Authors:Ansul Goenka, Parikshit Solunke"), h4(""))
         ))
@@ -231,8 +266,10 @@ server <- function(input, output)
     if (condition) success else TRUE
   }
   
+  
   #Apply filters according to user input and store the filtered data in df2
   df2 <- reactive({
+    print(input$kwd)
     rntlow=0
     rnthigh=0
     rntlow2=0
@@ -299,8 +336,10 @@ server <- function(input, output)
       rnthigh2=1000
     }
   
-    if(input$gnr != 'None'| input$rnt != 'None'|input$kwd != 'None'|input$crt != 'None'|input$gnr2 != 'None'|input$rnt2 != 'None'|input$kwd2 != 'None'|input$crt2 != 'None')
+    if(input$gnr != 'None'| input$rnt != 'None'|input$kwd != 'None'|input$crt != 'None'|input$gnr2 != 'None'|input$rnt2 != 'None'|input$kwd2 != 'None'|input$crt2 != 'None'|!is.null(input$typekwd[1]))
     {
+      if(input$krd!='Type Keyword')
+      {
     df %>%
       filter(
         conditional(input$gnr != 'None' & input$gnr2=='None', Genre == input$gnr ),
@@ -320,6 +359,31 @@ server <- function(input, output)
         conditional(input$crt =='None' & input$crt2!='None', grepl(input$crt2,Certificate ) )
         
       )
+      }
+      else
+      {
+        df %>%
+          filter(
+            conditional(input$gnr != 'None' & input$gnr2=='None', Genre == input$gnr ),
+            conditional(input$gnr != 'None' & input$gnr2!='None', Genre == input$gnr|Genre == input$gnr2 ),
+            conditional(input$gnr == 'None' & input$gnr2 !='None', Genre == input$gnr2 ),
+            
+            conditional(input$rnt != 'None'& input$rnt2=='None', Run.Time>=rntlow & Run.Time<rnthigh ),
+            conditional(input$rnt != 'None'& input$rnt2!='None', (Run.Time>=rntlow & Run.Time<rnthigh) |(Run.Time>=rntlow2 & Run.Time<rnthigh2)  ),
+            conditional(input$rnt == 'None'& input$rnt2!='None', Run.Time>=rntlow2 & Run.Time<rnthigh2 ),
+            
+            
+            conditional(input$crt !='None' & input$crt2=='None', grepl(input$crt,Certificate ) ),
+            conditional(input$crt !='None' & input$crt2!='None', grepl(input$crt,Certificate )|grepl(input$crt2,Certificate ) ),
+            conditional(input$crt =='None' & input$crt2!='None', grepl(input$crt2,Certificate ) ),
+            
+            conditional(is.null(input$typekwd[2]) & is.null(input$typekwd[3]) , grepl(input$typekwd[1],Keywords)),
+            conditional(!is.null(input$typekwd[2]) & is.null(input$typekwd[3]) , grepl(input$typekwd[1],Keywords)|grepl(input$typekwd[2],Keywords)),
+            conditional(!is.null(input$typekwd[2]) & !is.null(input$typekwd[3]) , grepl(input$typekwd[1],Keywords)|grepl(input$typekwd[2],Keywords)|grepl(input$typekwd[3],Keywords)),
+            
+            
+          )
+        }
     }
     else
     {
@@ -476,13 +540,53 @@ server <- function(input, output)
   })
   
   
-  
+  output$overview <- renderText({ 
+    if(input$gnr != 'None'| input$rnt != 'None'|input$kwd != 'None'|input$crt != 'None'|input$gnr2 != 'None'|input$rnt2 != 'None'|input$kwd2 != 'None'|input$crt2 != 'None'|!is.null(input$typekwd[1]))
+     {
+       if(input$flt=='None')
+       {  
+      paste(h4(HTML('&emsp;')," Movies in database: ",nrow(df),HTML('&emsp;'), "||",  HTML('&emsp;'), "Movies fitting criteria: ",nrow(df2())))
+       }
+       else
+       {
+           paste(h4(HTML('&emsp;')," Movies in database: ",nrow(df),HTML('&emsp;'), "||",  HTML('&emsp;'), "Movies fitting criteria: ",nrow(df3())))
+       }
+     }
+     else
+     {
+       if(input$flt=='None')
+       {  
+         paste(h4(HTML('&emsp;')," Movies in database: ",nrow(df) ))
+       }
+       else
+       {
+         paste(h4(HTML('&emsp;')," Movies in database: ",nrow(df),HTML('&emsp;'), "||",  HTML('&emsp;'), "Movies fitting criteria: ",nrow(df3())))
+       }
+     
+       
+     }
+    })
 
     
   output$bar1 <- renderPlot({
     plot<-count(df3(), 'Year')
-    ggplot(data=plot, aes(x=Year, y=freq)) + geom_bar(stat="identity",fill="#FF9999" ,width=0.8)+ylab("Number") +scale_x_continuous("Year",breaks=seq(1913, 2017, 5)) + scale_y_continuous(breaks=c(0,200,400,600,800))
-    
+    if(input$flt=='None')
+    {
+    ggplot(data=plot, aes(x=Year, y=freq)) + geom_bar(stat="identity",fill="#FF9999" ,width=0.8)+ylab("Number") +scale_x_continuous("Year",breaks=seq(1913, 2017, 3)) +theme(axis.text.x = element_text(angle = 45, hjust = 1))+ggtitle("Films by Year")
+    }
+    else
+    {
+      if(input$flt=='Year')
+      {
+        ggplot(data=plot, aes(x=Year, y=freq)) + geom_bar(stat="identity",fill="#FF9999" ,width=0.1)+ylab("Number") +scale_x_continuous("Year",breaks=seq(1913, 2017, 1))+ggtitle("Films by Year") 
+        
+      }
+      else
+      {
+        ggplot(data=plot, aes(x=Year, y=freq)) + geom_bar(stat="identity",fill="#FF9999" ,width=0.8)+ylab("Number") +scale_x_continuous("Year",breaks=seq(1913, 2017, 1))+ggtitle("Films by Year")
+        
+      }
+    }
     
     })
   output$bar2 <- renderPlot({
@@ -492,7 +596,7 @@ server <- function(input, output)
     if(input$flt=='None')
     {
       
-    ggplot(data=plot, aes(x=Runtime, y=Number)) + geom_bar(stat="identity",fill="#FF9999" ,width=0.8)+ggtitle("Films by Runtime")+xlab("Runtimes(Minutes)") 
+    ggplot(data=plot, aes(x=Runtime, y=Number)) + geom_bar(stat="identity",fill="#FF9999" ,width=0.8)+xlab("Runtimes(Minutes)")+ggtitle("Films by Runtime") 
     }
     else
     {
@@ -509,7 +613,7 @@ server <- function(input, output)
       #plot based on selection
       ggplot(m_dat[m_dat$group=="Number",],
                    aes(x=Runtime,y=value,group=variable,fill=variable)) +
-        geom_bar(stat="identity",position="dodge")+theme(axis.text.x = element_text(angle = 45, hjust = 1)) + scale_fill_discrete(name = "Number", labels = c("Overall", "Selection"))
+        geom_bar(stat="identity",position="dodge")+theme(axis.text.x = element_text(angle = 45, hjust = 1)) + scale_fill_discrete(name = "Number", labels = c("Overall", "Selection"))+ylab("Number")+ggtitle("Films by Runtime") 
 
       
       
@@ -627,15 +731,31 @@ server <- function(input, output)
   })
   
   output$tab1<-renderDataTable({
+    if(input$flt=='None')
+    {
    plot<-count(df2(), 'Year')
+    }
+    else
+    {
+      plot<-count(df3(), 'Year')
+      
+    }
    colnames(plot)<-c("Year","Number")
   datatable(plot,selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 5,dom='tp'))
   })
   
   
   output$tab2<-renderDataTable({
+    if(input$flt=='None')
+    {
     plot<-as.data.frame(table(cut(df2()$Run.Time,breaks=c(59,89,119,149,179,209,2000),labels=c("60-90","90-120","120-150","150-180","180-210",">210"))) )
-    colnames(plot)<-c("Runtime(Minutes)","Number")
+    }
+    else
+    {
+      plot<-as.data.frame(table(cut(df3()$Run.Time,breaks=c(59,89,119,149,179,209,2000),labels=c("60-90","90-120","120-150","150-180","180-210",">210"))) )
+      
+    }
+     colnames(plot)<-c("Runtime(Minutes)","Number")
 
     datatable(plot,selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 6,dom='tp'))
   })
@@ -663,19 +783,19 @@ server <- function(input, output)
     {
       plot<-count(df3(), 'Genre')
     }
-    colnames(plot)<-c("Month","Number")
-    datatable(plot,selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 6,dom='tp'))
+    colnames(plot)<-c("Genre","Number")
+    datatable(plot,selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 5,dom='tp'))
   })
   
   output$tab5<-renderDataTable({
     if(input$flt=='None')
     {
     
-    datatable(cfreq2()[,c(1,3)],colnames=c("Certificate", "Number"),selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 7,dom='tp'))
+    datatable(cfreq2()[,c(1,3)],colnames=c("Certificate", "Number"),selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 6,dom='tp'))
     }
     else
     {
-      datatable(cfreq3()[,c(1,3)],colnames=c("Certificate", "Number"),selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 7,dom='tp'))
+      datatable(cfreq3()[,c(1,3)],colnames=c("Certificate", "Number"),selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 6,dom='tp'))
     }
   })
   
@@ -683,12 +803,29 @@ server <- function(input, output)
     if(input$flt=='None')
     {
       
-      datatable(kfreq2()[,c(1,3)],colnames=c("Keyword", "Number"),selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 7,dom='tp'))
+      datatable(kfreq2()[,c(1,3)],colnames=c("Keyword", "Number"),selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 6,dom='tp'))
     }
     else
     {
-      datatable(kfreq3()[,c(1,3)],colnames=c("Keyword", "Number"),selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 7,dom='tp'))
+      datatable(kfreq3()[,c(1,3)],colnames=c("Keyword", "Number"),selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 6,dom='tp'))
     }
+  })
+  output$tab7<-renderDataTable({
+    if(input$flt=='None')
+    {
+     plot<- df2()[,c(2,3,6,7,9,5)]
+    
+    }
+    else
+    {
+      plot<- df3()[,c(2,3,6,7,9,5)]
+      
+    }
+    plot<-plot[!duplicated(plot$Movie),]
+    plot<-plot[order(-plot$Rating),]
+    plot<-plot[1:10,]
+    datatable(plot,colnames=c("Movie", "Year","Certificate","Genre","Runtime(Mins)","Rating"),rownames=FALSE,selection =list(mode = 'none'),options = list(pageLength = 10,dom='t'))
+    
   })
 }
 shinyApp(ui = ui, server = server)
