@@ -1,0 +1,12 @@
+name: IMDBViz
+title: IMDBViz
+username:
+account: parisolunke
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 2192367
+bundleId: 3069994
+url: https://parisolunke.shinyapps.io/IMDBViz/
+when: 1587963057.41208
+asMultiple: FALSE
+asStatic: FALSE
