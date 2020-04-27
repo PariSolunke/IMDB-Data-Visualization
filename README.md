@@ -10,3 +10,6 @@ Instructions:
 Open up the app.R file in R studio
 Ensure the data file imdb.csv is in the working directory
 Run the visualization
+
+Data Source: ftp://ftp.fu-berlin.de/pub/misc/movies/database/frozendata/
+The data was refined and combined into the file imdb.csv in R itself. The code used to refine the data is present in the "Preprocessing" directory
