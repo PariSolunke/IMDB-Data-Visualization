@@ -7,7 +7,7 @@ library(DT)
 library(reshape)
 
 df<-read.table(file = "imdb.csv", header = TRUE, sep = ",")
-df$Month<-month(parse_date_time(x = df$Release.Date,orders =c("d m y", "d B Y", "m/d/y"),locale = "eng"), label = TRUE, abbr = TRUE)
+df$Month<-month(parse_date_time(x = df$Release.Date,orders =c("d m y", "d B Y", "m/d/y")), label = TRUE, abbr = TRUE)
 df$Genre<-gsub("\t","",df$Genre,fixed = ,TRUE)
 
 df$Keywords<-as.character(df$Keywords)
@@ -34,18 +34,26 @@ certs<-append(certs,"None",0)
 genres<-as.array(unique(df$Genre))
 genres<-append(genres,"None",0)
 
+#to find total no.of movies and store average films released by year,month, and runtime
 totmov=nrow(df)
 ayr=round(totmov/length(unique(df$Year)),1)
 amt=round(ayr/12,1)
 art=round(sum(df$Run.Time)/totmov)
-#Left Join kfreq?
+
+#to store the number of films released by decade,month and year respectively
+dfdec<-setNames(as.data.frame(table(cut(df$Year,breaks=c(1909,1919,1929,1939,1949,1959,1969,1979,1989,1999,2009,2019),labels=c("1910s","1920s","1930s","1940s","1950s","1960s","1970s","1980s","1990s","2000s","2010s")))),c("Decade","Number"))
+dfmon<-df%>% plyr::count("Month")
+colnames(dfmon)<-c("Month","Number")
+dfmon<-dfmon[complete.cases(dfmon$Month), ]
+dfyr<-df%>% plyr::count("Year")
+colnames(dfyr)<-c("Year","Number")
 
 ui <- dashboardPage(skin="black",
                     
                     dashboardHeader(title = "IMDB Visualization"),
                     dashboardSidebar(disable = FALSE, collapsed = FALSE,
                                      sidebarMenu(
-                                         selectInput("flt","Filter by Year/Decade?",c("None","Year","Decade")),
+                                         selectInput("flt","Time Based Filters",c("None","Year","Decade")),
                                          conditionalPanel(
                                              condition = "input.flt=='Decade'",
                                              selectInput("ipdc","Choose Decade",c("1910s","1920s","1930s","1940s","1950s","1960s","1970s","1980s","1990s","2000s","2010s"),selected="2010s")
@@ -56,7 +64,7 @@ ui <- dashboardPage(skin="black",
                                              selectInput("ipyr","Choose Year",c(1913,1915:2017),selected="2013")
                                              
                                          ),
-                                         h5("Filters:"),
+                                         h5("Qualitative Filters:"),
                                          fluidRow(
                                              column(6,style='padding-left:0px; padding-right:0px;',   
                                                     selectInput("gnr","Genre Filter 1",genres)),
@@ -70,11 +78,11 @@ ui <- dashboardPage(skin="black",
                                                     selectInput("rnt2","Runtime Filter 2",c("None","<90","90-120","120-150","150-180","180-210",">210"))
                                              )),
                                          fluidRow(    
-                                             column(6,style='padding-left:0px; padding-right:0px;',  selectInput("crt","Certificate Filter 2",certs)
+                                             column(6,style='padding-left:0px; padding-right:0px;',  selectInput("crt","Certificate Filter 1",certs)
                                              ),
                                              column(6,style='padding-left:0px; padding-right:0px;', 
                                                     
-                                                    selectInput("crt2","Certificate Filter 1",certs)
+                                                    selectInput("crt2","Certificate Filter 2",certs)
                                              )
                                          ),
                                          radioButtons("krd", "Keyword Method", choices = c("Select From top 10","Type Keyword"), inline = FALSE,),
@@ -123,7 +131,13 @@ ui <- dashboardPage(skin="black",
                                           fluidRow(          
                                               tabBox(
                                                   id = "tabset4", height = "380px",width=8,
-                                                  tabPanel("Distribution by Year",  plotOutput("bar1",height = 335))
+                                                  tabPanel("Yearly Movies",  plotOutput("bar1",height = 335)),
+                                                  tabPanel("% by Decade(Filters)",  plotOutput("bar9",height = 335)), 
+                                                  tabPanel("% by Year(Filters)",  plotOutput("bar7",height = 335)),
+                                                  tabPanel("% by Month(Filters)",  plotOutput("bar8",height = 335))
+                                                           
+                                                                    
+                                                
                                                   
                                               ),
                                               tabBox(
@@ -175,20 +189,20 @@ ui <- dashboardPage(skin="black",
                                          
                                          fluidRow(
                                              column(4,
-                                                    box( title = "Films by Year", solidHeader = TRUE, status = "info", width = 12,height=370,
+                                                    box( title = "Movies by Year", solidHeader = TRUE, status = "info", width = 12,height=370,
                                                          dataTableOutput("tab1")
                                                     )
                                              ),
                                              
                                              column(4,
-                                                    box( title = "Films by Runtime", solidHeader = TRUE, status = "info", width = 12,height=370,
+                                                    box( title = "Movies by Runtime", solidHeader = TRUE, status = "info", width = 12,height=370,
                                                          dataTableOutput("tab2")
                                                     )
                                                     
                                                     
                                              ),
                                              column(4,
-                                                    box( title = "Films by Month", solidHeader = TRUE, status = "info", width = 12,height=370,
+                                                    box( title = "Movies by Month", solidHeader = TRUE, status = "info", width = 12,height=370,
                                                          dataTableOutput("tab3")
                                                     )
                                                     
@@ -197,20 +211,20 @@ ui <- dashboardPage(skin="black",
                                          ),
                                          fluidRow(
                                              column(4,
-                                                    box( title = "Films by Genre", solidHeader = TRUE, status = "info", width = 12,height=375,
+                                                    box( title = "Movies by Genre", solidHeader = TRUE, status = "info", width = 12,height=375,
                                                          dataTableOutput("tab4")
                                                     )
                                                     
                                              ),
                                              column(4,
                                                     
-                                                    box( title = "Films by Certificate", solidHeader = TRUE, status = "info", width = 12,height=375,
+                                                    box( title = "Movies by Certificate", solidHeader = TRUE, status = "info", width = 12,height=375,
                                                          dataTableOutput("tab5")
                                                     )
                                                     
                                              ),
                                              column(4,
-                                                    box( title = "Films by Keyword", solidHeader = TRUE, status = "info", width = 12,height=375,
+                                                    box( title = "Movies by Keyword", solidHeader = TRUE, status = "info", width = 12,height=375,
                                                          dataTableOutput("tab6")
                                                     )
                                                     
@@ -585,8 +599,8 @@ server <- function(input, output)
         
     })
     output$bar2 <- renderPlot({
-        plot<-as.data.frame(table(cut(df2()$Run.Time,breaks=c(59,89,119,149,179,209,2000),labels=c("<90","90-120","120-150","150-180","180-210",">210"))) )
-        colnames(plot)<-c("Runtime","Number")
+        plot<-setNames(as.data.frame(table(cut(df2()$Run.Time,breaks=c(59,89,119,149,179,209,2000),labels=c("<90","90-120","120-150","150-180","180-210",">210"))) ),c("Runtime","Number"))
+        
         
         if(input$flt=='None')
         {
@@ -596,8 +610,8 @@ server <- function(input, output)
         else
         {
             
-            plot2<-as.data.frame(table(cut(df3()$Run.Time,breaks=c(59,89,119,149,179,209,2000),labels=c("<90","90-120","120-150","150-180","180-210",">210"))) )
-            colnames(plot2)<-c("Runtime","Number")
+            plot2<-setNames(as.data.frame(table(cut(df3()$Run.Time,breaks=c(59,89,119,149,179,209,2000),labels=c("<90","90-120","120-150","150-180","180-210",">210"))) ),c("Runtime","Number"))
+        
             plot$Number2<-plot2$Number
             
             m_dat <- melt(plot,id="Runtime")
@@ -724,6 +738,37 @@ server <- function(input, output)
             
         }    
     })
+    
+    output$bar7 <- renderPlot({
+        dfyr2<-df2()%>% plyr::count("Year")
+        colnames(dfyr2)<-c("Year","Number")
+        dfyr2<-setNames(left_join(dfyr,dfyr2,by=c("Year")),c("Year","N1","N2"))
+        dfyr2$N2[is.na(dfyr2$N2)] = 0
+        dfyr2$Percent=round((dfyr2$N2/dfyr2$N1)*100,1)
+        ggplot(data=dfyr2, aes(x=Year, y=Percent)) + geom_bar(stat="identity",fill="#FF9999" ,width=0.8)+scale_x_continuous("Year",breaks=seq(1913, 2017, 3)) +theme(axis.text.x = element_text(angle = 45, hjust = 1))
+        })
+    
+    output$bar8 <- renderPlot({
+        dfmon2<-df2()%>% plyr::count("Month")
+        colnames(dfmon2)<-c("Month","Number")
+        
+        dfmon2<-setNames(left_join(dfmon,dfmon2,by=c("Month")),c("Month","N1","N2"))
+        dfmon2$N2[is.na(dfmon2$N2)] = 0
+        dfmon2$Percent=round((dfmon2$N2/dfmon2$N1)*100,1)
+        ggplot(data=dfmon2, aes(x=Month, y=Percent)) + geom_bar(stat="identity",fill="#FF9999" ,width=0.8)
+ 
+           })
+    
+    
+    output$bar9 <- renderPlot({
+        dfdec2<-setNames(as.data.frame(table(cut(df2()$Year,breaks=c(1909,1919,1929,1939,1949,1959,1969,1979,1989,1999,2009,2019),labels=c("1910s","1920s","1930s","1940s","1950s","1960s","1970s","1980s","1990s","2000s","2010s")))),c("Decade","Number"))
+        
+        dfdec2<-setNames(left_join(dfdec,dfdec2,by=c("Decade")),c("Decade","N1","N2"))
+        dfdec2$Percent=round((dfdec2$N2/dfdec2$N1)*100,1)
+        ggplot(data=dfdec2, aes(x=Decade, y=Percent)) + geom_bar(stat="identity",fill="#FF9999" ,width=0.8)
+    })
+    
+    
     
     output$tab1<-renderDataTable({
         if(input$flt=='None')
