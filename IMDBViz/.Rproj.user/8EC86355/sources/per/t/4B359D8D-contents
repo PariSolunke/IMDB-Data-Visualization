@@ -6,31 +6,38 @@ library(ggplot2)
 library(DT)
 library(reshape)
 
+#read in the refined imdb csv file containing all the data
 df<-read.table(file = "imdb.csv", header = TRUE, sep = ",")
+#parse months
 df$Month<-month(parse_date_time(x = df$Release.Date,orders =c("d m y", "d B Y", "m/d/y")), label = TRUE, abbr = TRUE)
+#parse genre
 df$Genre<-gsub("\t","",df$Genre,fixed = ,TRUE)
-
+#change keywords from factor to character vector
 df$Keywords<-as.character(df$Keywords)
 df$Keywords<-gsub(" ","",df$Keywords,fixed = TRUE)
 
+#top 10 keywords stored in kfreq
 kfreq<-setNames(as.data.frame(table(unlist(strsplit(df$Keywords, ",", fixed=TRUE)))),c("Keyword","Number"))
 kfreq$Keyword<-as.character(kfreq$Keyword)
 kfreq<-kfreq[order(-kfreq$Number),]
+#exclude any possible nsfw keywords from the list
 kfreq<-kfreq[!grepl("nudity|sex|breast|chest|softcore|rape|rapist|porn", kfreq$Keyword),]
 allkeys<-kfreq$Keyword[1:3000]
 kfreq<-kfreq[1:10,]
-
+#store names of top 10 keywords
 keys<-as.array(kfreq$Keyword)
 keys<-append(keys,"None",0)
-
+#parse certificates
 df$Certificate<-as.character(df$Certificate)
 df$Certificate<-gsub(" ","",df$Certificate,fixed = TRUE)
+#cfreq is used to store occurences of certificates
 cfreq<-setNames(as.data.frame(table(unlist(strsplit(df$Certificate, ",", fixed=TRUE)))),c("Certificate","Number"))
 cfreq$Certificate<-as.character(cfreq$Certificate)
 cfreq<-cfreq[cfreq$Number>6,]
+#store names of certificates for input panel
 certs<-as.array(cfreq$Certificate)
 certs<-append(certs,"None",0)
-
+#store genres for input panel
 genres<-as.array(unique(df$Genre))
 genres<-append(genres,"None",0)
 
@@ -274,9 +281,9 @@ server <- function(input, output)
     }
     
     
-    #Apply filters according to user input and store the filtered data in df2
+    #df2 is used to store filtered data for the genre/keyword/certificate and runtime filters 
     df2 <- reactive({
-        
+        #finding runtime limits
         rntlow=0
         rnthigh=0
         rntlow2=0
@@ -345,6 +352,7 @@ server <- function(input, output)
         
         if(input$gnr != 'None'| input$rnt != 'None'|input$kwd != 'None'|input$crt != 'None'|input$gnr2 != 'None'|input$rnt2 != 'None'|input$kwd2 != 'None'|input$crt2 != 'None'|!is.null(input$typekwd[1]))
         {
+            #code for filtering when type of keyword input is selection from top 10
             if(input$krd!='Type Keyword')
             {
                 df %>%
@@ -369,6 +377,7 @@ server <- function(input, output)
             }
             else
             {
+                #code for filtering when type of keyword input is typingthe keywords
                 df %>%
                     filter(
                         conditional(input$gnr != 'None' & input$gnr2=='None', Genre == input$gnr ),
@@ -392,12 +401,14 @@ server <- function(input, output)
                     )
             }
         }
-        else
+        #if not filtered then original data frame should go into df2()
+        else 
         {
             df
         }
     })
     
+    #used for storing the distribution of certificates when qualitative filters have been applied
     cfreq2<-reactive({
         cf1<-setNames(as.data.frame(table(unlist(strsplit(df2()$Certificate, ",", fixed=TRUE)))),c("Certificate","Number"))
         cf1$Certificate<-as.character(cf1$Certificate)
@@ -427,7 +438,7 @@ server <- function(input, output)
         cf1
     })
     
-    
+    #used for storing the distribution of keywords when qualitative filters have been applied
     kfreq2<-reactive({
         kf1<-setNames(as.data.frame(table(unlist(strsplit(df2()$Keywords, ",", fixed=TRUE)))),c("Keyword","Number"))
         kf1$Keyword<-as.character(kf1$Keyword)
@@ -457,6 +468,7 @@ server <- function(input, output)
         kf1
     })
     
+    #used for storing the filtered data for time based filters
     
     df3<-reactive({
         if(input$flt=='Year')
@@ -517,6 +529,7 @@ server <- function(input, output)
         }
     })
     
+    #used for storing the distribution of certificates when time based filters have been applied
     
     cfreq3<-reactive({
         cf2<-setNames(as.data.frame(table(unlist(strsplit(df3()$Certificate, ",", fixed=TRUE)))),c("Certificate","Number"))
@@ -531,6 +544,7 @@ server <- function(input, output)
         cf2
         
     })
+    #used for storing the distribution of keywords when time based filters have been applied
     
     kfreq3<-reactive({
         kf2<-setNames(as.data.frame(table(unlist(strsplit(df3()$Keywords, ",", fixed=TRUE)))),c("Keyword","Number"))
@@ -546,7 +560,7 @@ server <- function(input, output)
         
     })
     
-    
+    #used to display overview info
     output$overview <- renderText({
         
         if(input$gnr != 'None'| input$rnt != 'None'|input$kwd != 'None'|input$crt != 'None'|input$gnr2 != 'None'|input$rnt2 != 'None'|input$kwd2 != 'None'|input$crt2 != 'None'|!is.null(input$typekwd[1]))
@@ -575,21 +589,24 @@ server <- function(input, output)
         }
     })
     
-    
+    #plot films by year
     output$bar1 <- renderPlot({
         
         plot<-df3() %>% plyr::count("Year")
+        #when no time filter has been applied
         if(input$flt=='None')
         {
             ggplot(data=plot, aes(x=Year, y=freq)) + geom_bar(stat="identity",fill="#FF9999" ,width=0.8)+ylab("Number") +scale_x_continuous("Year",breaks=seq(1913, 2017, 3)) +theme(axis.text.x = element_text(angle = 45, hjust = 1))
         }
         else
         {
+            #when filtered by year
             if(input$flt=='Year')
             {
                 ggplot(data=plot, aes(x=Year, y=freq)) + geom_bar(stat="identity",fill="#FF9999" ,width=0.1)+ylab("Number") +scale_x_continuous("Year",breaks=seq(1913, 2017, 1))
                 
             }
+            #when filtered by decade
             else
             {
                 ggplot(data=plot, aes(x=Year, y=freq)) + geom_bar(stat="identity",fill="#FF9999" ,width=0.8)+ylab("Number") +scale_x_continuous("Year",breaks=seq(1913, 2017, 1))
@@ -598,15 +615,17 @@ server <- function(input, output)
         }
         
     })
+    #plot films by runtime
     output$bar2 <- renderPlot({
         plot<-setNames(as.data.frame(table(cut(df2()$Run.Time,breaks=c(59,89,119,149,179,209,2000),labels=c("<90","90-120","120-150","150-180","180-210",">210"))) ),c("Runtime","Number"))
         
-        
+        #when no time filter has been applied
         if(input$flt=='None')
         {
             
             ggplot(data=plot, aes(x=Runtime, y=Number)) + geom_bar(stat="identity",fill="#FF9999" ,width=0.8)+xlab("Runtimes(Minutes)")
         }
+        #when time filter has been applied, plot comparitive graph
         else
         {
             
@@ -631,16 +650,18 @@ server <- function(input, output)
         
     })
     
-    
+    #plot films by month
     output$bar3 <- renderPlot({
         plot<-df2() %>% plyr::count("Month")
         colnames(plot)<-c("Month","Number")
         
         plot<-plot[complete.cases(plot$Month), ]
+        #when no time filter has been applied
         if(input$flt=='None')
         {
             ggplot(data=plot, aes(x=Month, y=Number)) + geom_bar(stat="identity",fill="#FF9999" ,width=0.8)+ylab("Number")
         }
+        #when time filter has been applied, plot comparitive graph
         else
         {
             plot2<-df3() %>% plyr::count("Month")
@@ -666,14 +687,17 @@ server <- function(input, output)
     })
     
     
-    
+    #plot films by Genre
     output$bar4 <- renderPlot({
         plot<-df2() %>% plyr::count("Genre")
         colnames(plot)<-c("Genre","Number")
+        #when no time filter has been applied
+        
         if(input$flt=='None')
         {
             ggplot(data=plot, aes(x=Genre, y=Number )) + geom_bar(stat="identity",fill="#FF9999" ,width=0.8)+ylab("Number") +theme(axis.text.x = element_text(angle = 45, hjust = 1))+ylab("Number")
         }
+        #when time filter has been applied, plot comparitive graph
         else
         {
             plot2<-df3() %>% plyr::count("Genre")
@@ -695,13 +719,14 @@ server <- function(input, output)
         }
         
     })
-    
+    #plot films by certificate
     output$bar5 <- renderPlot({
-        
+        #when no time filter has been applied
         if(input$flt=='None')
         {
             ggplot(data=cfreq2(), aes(x=Certificate, y=Number2)) + geom_bar(stat="identity",fill="#FF9999" ,width=0.8)+ scale_y_continuous(breaks=c(0,2000,4000,6000,8000,10000,12000,14000))+ylab("Number")
         }
+        #when time filter has been applied, plot a comparitive graph
         else
         {
             
@@ -716,14 +741,16 @@ server <- function(input, output)
             
         }
     })
-    
+    #plot films by keyword
     output$bar6 <- renderPlot({
         
-        
+        #when no time filter has been applied
         if(input$flt=='None')
         {
             ggplot(data=kfreq2(), aes(x=Keyword, y=Number2)) + geom_bar(stat="identity",fill="#FF9999" ,width=0.8)+ coord_flip()+ylab("Number")
         }
+        #when time filter has been applied, plot a comparitive graph
+        
         else
         {
             
@@ -738,18 +765,19 @@ server <- function(input, output)
             
         }    
     })
-    
+    #display percentage of movies released per year which fall in the criteria chosen by user
     output$bar7 <- renderPlot({
-        dfyr2<-df2()%>% plyr::count("Year")
+        dfyr2<-df3()%>% plyr::count("Year")
         colnames(dfyr2)<-c("Year","Number")
         dfyr2<-setNames(left_join(dfyr,dfyr2,by=c("Year")),c("Year","N1","N2"))
         dfyr2$N2[is.na(dfyr2$N2)] = 0
         dfyr2$Percent=round((dfyr2$N2/dfyr2$N1)*100,1)
         ggplot(data=dfyr2, aes(x=Year, y=Percent)) + geom_bar(stat="identity",fill="#FF9999" ,width=0.8)+scale_x_continuous("Year",breaks=seq(1913, 2017, 3)) +theme(axis.text.x = element_text(angle = 45, hjust = 1))
         })
+    #display percentage of movies released per month which fall in the criteria chosen by user
     
     output$bar8 <- renderPlot({
-        dfmon2<-df2()%>% plyr::count("Month")
+        dfmon2<-df3()%>% plyr::count("Month")
         colnames(dfmon2)<-c("Month","Number")
         
         dfmon2<-setNames(left_join(dfmon,dfmon2,by=c("Month")),c("Month","N1","N2"))
@@ -759,9 +787,10 @@ server <- function(input, output)
  
            })
     
+    #display percentage of movies released per decade which fall in the criteria chosen by user
     
     output$bar9 <- renderPlot({
-        dfdec2<-setNames(as.data.frame(table(cut(df2()$Year,breaks=c(1909,1919,1929,1939,1949,1959,1969,1979,1989,1999,2009,2019),labels=c("1910s","1920s","1930s","1940s","1950s","1960s","1970s","1980s","1990s","2000s","2010s")))),c("Decade","Number"))
+        dfdec2<-setNames(as.data.frame(table(cut(df3()$Year,breaks=c(1909,1919,1929,1939,1949,1959,1969,1979,1989,1999,2009,2019),labels=c("1910s","1920s","1930s","1940s","1950s","1960s","1970s","1980s","1990s","2000s","2010s")))),c("Decade","Number"))
         
         dfdec2<-setNames(left_join(dfdec,dfdec2,by=c("Decade")),c("Decade","N1","N2"))
         dfdec2$Percent=round((dfdec2$N2/dfdec2$N1)*100,1)
@@ -769,12 +798,14 @@ server <- function(input, output)
     })
     
     
-    
+    #tabular form of films by year
     output$tab1<-renderDataTable({
+        #when not filtered by time
         if(input$flt=='None')
         {
             plot<-df2() %>% plyr::count("Year")
         }
+        #when filtered by time
         else
         {
             plot<-df3() %>% plyr::count("Year")
@@ -784,12 +815,16 @@ server <- function(input, output)
         datatable(plot,selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 5,dom='tp'))
     })
     
-    
+    #tabular form of films by runtime
     output$tab2<-renderDataTable({
+        #when not filtered by time
+        
         if(input$flt=='None')
         {
             plot<-as.data.frame(table(cut(df2()$Run.Time,breaks=c(59,89,119,149,179,209,2000),labels=c("60-90","90-120","120-150","150-180","180-210",">210"))) )
         }
+        #when filtered by time
+        
         else
         {
             plot<-as.data.frame(table(cut(df3()$Run.Time,breaks=c(59,89,119,149,179,209,2000),labels=c("60-90","90-120","120-150","150-180","180-210",">210"))) )
@@ -799,12 +834,16 @@ server <- function(input, output)
         
         datatable(plot,selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 6,dom='tp'))
     })
-    
+    #tabular form of films by month
     output$tab3<-renderDataTable({
+        #when not filtered by time
+        
         if(input$flt=='None')
         {
             plot<-df2() %>% plyr::count("Month")
         }
+        #when filtered by time
+        
         else
         {
             plot<-df3() %>% plyr::count("Month")
@@ -813,12 +852,16 @@ server <- function(input, output)
         colnames(plot)<-c("Month","Number")
         datatable(plot,selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 6,dom='tp'))
     })
-    
+    #tabular form of films by genre
     output$tab4<-renderDataTable({
+        #when not filtered by time
+        
         if(input$flt=='None')
         {
             plot<-df2() %>% plyr::count("Genre")
         }
+        #when filtered by time
+        
         else
         {
             plot<-df3() %>% plyr::count("Genre")
@@ -826,36 +869,43 @@ server <- function(input, output)
         colnames(plot)<-c("Genre","Number")
         datatable(plot,selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 5,dom='tp'))
     })
-    
+    #tabular form of films by certificate
     output$tab5<-renderDataTable({
+        #when not filtered by time
         if(input$flt=='None')
         {
             
             datatable(cfreq2()[,c(1,3)],colnames=c("Certificate", "Number"),selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 6,dom='tp'))
         }
+        #when filtered by time
         else
         {
             datatable(cfreq3()[,c(1,3)],colnames=c("Certificate", "Number"),selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 6,dom='tp'))
         }
     })
-    
+    #tabular form of films by keyword
     output$tab6<-renderDataTable({
+        #when not filtered by time
         if(input$flt=='None')
         {
             
             datatable(kfreq2()[,c(1,3)],colnames=c("Keyword", "Number"),selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 6,dom='tp'))
         }
+        #when filtered by time
         else
         {
             datatable(kfreq3()[,c(1,3)],colnames=c("Keyword", "Number"),selection =list(mode = 'none'),rownames=FALSE,options = list(pageLength = 6,dom='tp'))
         }
     })
+    #highest rated movies according to specified criteria
     output$tab7<-renderDataTable({
+        #when not filtered by time
         if(input$flt=='None')
         {
             plot<- df2()[,c(2,3,6,7,9,5)]
             
         }
+        #when not filtered by time
         else
         {
             plot<- df3()[,c(2,3,6,7,9,5)]
