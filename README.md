@@ -11,4 +11,5 @@ Instructions:
 3)Run the visualization
 
 Data Source: ftp://ftp.fu-berlin.de/pub/misc/movies/database/frozendata/
+
 The data was refined and combined into the file imdb.csv in R itself. The code used to refine the data as well as info about the pre-processing is present in the "Preprocessing" directory
